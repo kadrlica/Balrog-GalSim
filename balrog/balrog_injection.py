@@ -70,10 +70,9 @@ _allowed_bands = 'grizy'
 _supported_psf_types = ['DES_PSFEx']#, 'Piff'}
 _psf_extensions = {'DES_PSFEx' : 'psfexcat.psf'}#, 'Piff' : 'something.piff'}
 
-_supported_input_types = ['ngmix_catalog', 'des_star_catalog', 'cosmos_chromatic_catalog',
-                          'meds_catalog']
-_supported_gal_types = ['ngmix_catalog', 'cosmos_chromatic_catalog', 'meds_catalog']
+_supported_gal_types = ['ngmix_catalog', 'cosmos_chromatic_catalog', 'meds_catalog', 'udg_catalog']
 _supported_star_types = ['des_star_catalog']
+_supported_input_types = _supported_gal_types + _supported_star_types
 
 #-------------------------------------------------------------------------------
 # Tile class and functions
@@ -532,7 +531,7 @@ class Tile(object):
         '''
 
         input_type = config.input_types['gals']
-        if input_type in ['ngmix_catalog', 'cosmos_chromatic_catalog', 'meds_catalog']:
+        if input_type in _supported_gal_types:
             # input_type = 'ngmix_catalog'
             gal_type = config.input_types['gals']
             if config.data_version == 'y3v02':
@@ -657,7 +656,7 @@ class Tile(object):
                                 galsim.config.ProcessInput(gs_config)
                                 cat_proxy = gs_config['input_objs'][input_type][0] # Actually a proxy
                                 cat = cat_proxy.getCatalog()
-                                if input_type == 'ngmix_catalog':
+                                if input_type in ['ngmix_catalog','udg_catalog']:
                                     indx = int(np.where(cat['id']==orig_indx)[0])
                                 elif input_type == 'meds_catalog':
                                     # ID's consistent between bands
@@ -902,7 +901,7 @@ class Tile(object):
             })
 
         # pudb.set_trace()
-        if input_type in ['ngmix_catalog', 'meds_catalog', 'des_star_catalog']:
+        if input_type in ['ngmix_catalog', 'meds_catalog', 'udg_catalog', 'des_star_catalog']:
             # Only load into memory the needed band catalog information
             self.bal_config[i]['input'].update({
                 input_type : {'bands' : chip.band}
@@ -1099,7 +1098,7 @@ class Tile(object):
             outfiles['gals'] = base_outfile + '_gals.fits'
             # pudb.set_trace()
             # Now update ra/dec positions for truth catalog
-            if itype == 'ngmix_catalog':
+            if itype in ['ngmix_catalog','udg_catalog']:
                 truth['gals'] = config.input_cats[itype][self.gals_indx[real]]
             elif itype == 'meds_catalog':
                 # Parametric truth catalog previously loaded in `load_input_catalogs()`
@@ -1174,9 +1173,11 @@ class Tile(object):
                 truth_cat[in_type]['RA'] = pos[self.curr_real][:,0]
                 truth_cat[in_type]['DEC'] = pos[self.curr_real][:,1]
             except KeyError as e:
-                raise('Tried to write truth positions using column names of ra/dec; RA/DEC.',
-                        'either rename position columns or add an entry for {}'.format(in_type),
-                        'in `write_truth_catalog()`\n',e)
+                msg= 'Tried to write truth positions using column names of ra/dec; RA/DEC.'
+                msg+=' Rename position columns or add an entry for {}'.format(in_type)
+                msg+=' in `write_truth_catalog()`\n'
+                msg+= str(e)
+                raise(KeyError(msg))
 
         return
 
@@ -1985,13 +1986,16 @@ class Config(object):
 
                     # TODO: Can we grab the injection type from the registered GS catalog?
                     # pudb.set_trace()
-                    if input_type in ['ngmix_catalog', 'meds_catalog']:
+                    if input_type in ['ngmix_catalog', 'meds_catalog','udg_catalog']:
                         if input_type == 'ngmix_catalog':
                             from ngmix_catalog import ngmixCatalog as CATMOD
                             from ngmix_catalog import ngmixCatalogLoader as LOADMOD
                         if input_type == 'meds_catalog':
                             from meds_catalog import MEDSCatalog as CATMOD
                             from meds_catalog import MEDSCatalogLoader as LOADMOD
+                        if input_type == 'udg_catalog':
+                            from udg_catalog import udgCatalog as CATMOD
+                            from udg_catalog import udgCatalogLoader as LOADMOD
 
                         # As we are outside of the GalSim executable, we need to register
                         # the input type explicitly
