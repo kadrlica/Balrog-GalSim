@@ -15,47 +15,25 @@ from past.builtins import basestring # Python 2&3 compatibility
 # import pudb
 
 # TODO: Include noise, pixscale
-# TODO: Understand T=0 cases!
 # TODO: Handle case of gparams=None
 
-import pdb
-import os
-import sys
-
-def set_trace():
-    frame = sys._getframe().f_back  # pop the current stackframe off
-    pdb.set_trace(frame=frame, Pdb=ForkablePdb)
-
-
-class ForkablePdb(pdb.Pdb):
-    """Pdb that works from a multiprocessing child"""
-
-    def interaction(self, *args, **kwargs):
-        original_stdin = sys.stdin
-        try:
-            sys.stdin = os.fdopen(0)  # 0 should be stdin's file descriptor
-            pdb.Pdb.interaction(self, *args, **kwargs)
-        finally:
-            sys.stdin = original_stdin
-
-
 class udgCatalog(object):
-    """ Class that handles catalogs of udg profiles. 
+    """ Class that handles catalogs of UDG profiles. 
 
     Much of this class as well as its corresponding loader/builder are designed by inspection of
     `des_psfex.py` and `scene.py`. Credit to the GalSim team.
 
     @param file_name       The file name to be read in, or a pyfits HDU in which case it is used
                            directly instead of being opened.
+    @param bands           A string of the desired bands to simulate from (only griz allowed). For
+                           example, selecting only the 'g' and 'r' bands would be done by setting
+                           bands='gr'. If none are passed, the g-band is selected by default.
     @param dir             Optionally a directory name can be provided if the file_name does not
                            already include it.  (The image file is assumed to be in the same
                            directory.) (Default `dir = None`).  Cannot pass an HDU with this option.
     @param catalog_type    The type of the input catalog. Only those in `valid_catalog_types`
                            are currently supported. If none is passed, the type is attempted to be
                            inferred from the filename.
-    @param bands           A string of the desired bands to simulate from (only griz allowed). For
-                           example, selecting only the 'g' and 'r' bands would be done by setting
-                           bands='gr'. If none are passed, the g-band is selected by default.
     @param _nobjects_only  This is only passed if GalSim wants to know how many input objects will
                            be used without processing the whole input catalog.
     """
@@ -235,7 +213,7 @@ class udgCatalog(object):
         galaxies = []
 
         for index in indices:
-            gal = self.catalog2gs(index,gsparams)
+            gal = self.cat2gs(index,gsparams)
             galaxies.append(gal)
 
         # Store the orig_index as gal.index
@@ -250,11 +228,12 @@ class udgCatalog(object):
 
     #------------------------------------------------------------------------------------------------
 
-    def catalog2gs(self, index, gsparams):
+    def cat2gs(self, index, gsparams):
         """
         This function handles the conversion of a catalog object to a GS object. The required conversion is
         different for each catalog type.
         @ param index       The catalog index of the galaxy to be converted.
+        @ param gsparams    The GalSim parameters.
         """
 
         # TODO: Make sure that the index usage is consistent with original/ indices!!
